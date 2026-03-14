@@ -314,7 +314,7 @@ class MappingStyleDialog(QDialog):
             combo_type.setCurrentText(m.get("curve_type", "Line segment"))
             combo_type.currentTextChanged.connect(lambda text, row=i: self.update_map(row, "curve_type", text))
             if m.get("curve_type", "Line segment") == "Line segment":
-                # Tecplot colors the combo box background a little bit light blue when active 
+                # Color the combo box background a little bit light blue when active 
                 pass # keeping native PyQt styling for now
             self.table_curves.setCellWidget(i, 3, combo_type)
             

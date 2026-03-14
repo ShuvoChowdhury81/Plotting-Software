@@ -75,7 +75,7 @@ class WorkspaceWidget(QWidget):
             
             self.canvas.setGeometry(x, y, cv_w, cv_h)
 
-class CleanTecplotGUI(QMainWindow):
+class FigaroApp(QMainWindow):
     def __init__(self):
         super().__init__()
         self.current_pkg_file = None
@@ -469,7 +469,7 @@ class CleanTecplotGUI(QMainWindow):
         btn_load.clicked.connect(self.load_data)
         toolbar.addWidget(btn_load)
         
-        # Tecplot-style quick access to Mapping style
+        # Quick access to Mapping style
         btn_map = QPushButton("🗺️ Mapping Style")
         btn_map.setStyleSheet("font-weight: bold; color: #d62728;")
         btn_map.setFlat(True)
@@ -1448,7 +1448,7 @@ class CleanTecplotGUI(QMainWindow):
                 self.status.showMessage(f"Failed to load package: {e}")
 
     def update_window_title(self):
-        base_title = "Tecplot 360 Clone (2D)"
+        base_title = "Figaro"
         if self.current_pkg_file:
             # Extract just the filename for cleaner display, or show full path
             import os
@@ -1550,7 +1550,7 @@ class CleanTecplotGUI(QMainWindow):
                     L_lower = line.lower()
                     
                     if L_lower.startswith('variables'):
-                        # Very naive parse of tecplot variables line
+                        # Very naive parse of variables line
                         raw_vars = line.split('=')[1] if '=' in line else line
                         headers = [v.strip(' ",\'') for v in raw_vars.split(',') if v.strip(' ",\'')]
                         continue
@@ -1662,7 +1662,7 @@ class CleanTecplotGUI(QMainWindow):
                         }
                         self.maps.append(new_map)
                     
-                    self.setWindowTitle(f"Tecplot 360 Clone (2D) - {file_name}")
+                    self.setWindowTitle(f"Figaro - {file_name}")
                     self.update_plot()
                     self.status.showMessage(f"Successfully loaded data. Click Mapping Style to configure.")
                     

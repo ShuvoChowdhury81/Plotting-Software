@@ -1,6 +1,6 @@
-# Plotting Software
+# Figaro
 
-A desktop scientific plotting application built with **PyQt6** and **Matplotlib**, inspired by Tecplot. Create, customize, and export publication-quality 2D plots with an intuitive GUI.
+A desktop scientific plotting application built with **PyQt6** and **Matplotlib**. Create, customize, and export publication-quality 2D plots with an intuitive GUI.
 
 ![Python](https://img.shields.io/badge/Python-3.10%2B-blue)
 ![PyQt6](https://img.shields.io/badge/GUI-PyQt6-green)
@@ -27,7 +27,7 @@ A desktop scientific plotting application built with **PyQt6** and **Matplotlib*
 Ploting Software/
 ├── main.py                  # Application entry point
 ├── ui/
-│   ├── main_window.py       # Main GUI window (CleanTecplotGUI)
+│   ├── main_window.py       # Main GUI window (FigaroApp)
 │   ├── widgets/
 │   │   └── switch.py        # Custom toggle switch widget
 │   └── dialogs/
