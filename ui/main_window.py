@@ -81,6 +81,7 @@ class FigaroApp(QMainWindow):
         self.current_pkg_file = None
         self.update_window_title()
         self.setGeometry(100, 100, 1200, 800)
+        self.setAcceptDrops(True)
         # --- Theme Styling ---
         # Generate a white checkmark image for checkbox styling at startup
         import os, tempfile
@@ -436,6 +437,16 @@ class FigaroApp(QMainWindow):
         open_pkg_action = QAction("Open Plot Package...", self)
         open_pkg_action.triggered.connect(self.open_plot_package)
         file_menu.addAction(open_pkg_action)
+        
+        file_menu.addSeparator()
+
+        save_tpl_action = QAction("Save Plot Template...", self)
+        save_tpl_action.triggered.connect(self.save_plot_template)
+        file_menu.addAction(save_tpl_action)
+
+        open_tpl_action = QAction("Open Plot Template...", self)
+        open_tpl_action.triggered.connect(self.open_plot_template)
+        file_menu.addAction(open_tpl_action)
         
         file_menu.addSeparator()
         exit_action = QAction("Exit", self)
@@ -954,10 +965,8 @@ class FigaroApp(QMainWindow):
                                      capsize=eb_capsize, capthick=eb_lw, zorder=4)
         
         # --- Frame Size & Aspect Ratio Implementation ---
-        if self.frame_cfg.get("square_aspect", True):
-            self.ax.set_box_aspect(1)
-        else:
-            self.ax.set_box_aspect(None) # Let it stretch dynamically
+        # The axes will dynamically stretch according to the subplots_adjust paddings.
+        self.ax.set_box_aspect(None)
             
         show_frame_border = self.frame_cfg.get("show_border", True)
         # We will override the top/right spines if show_frame_border is False
@@ -1377,16 +1386,37 @@ class FigaroApp(QMainWindow):
         self.canvas.draw()
         
         # Apply layout adjustment based on settings
+        w = self.frame_cfg.get("width", 6.0)
+        h = self.frame_cfg.get("height", 6.0)
+        
+        # Calculate dynamic fractions from absolute inches (safety check against zero bounds)
+        raw_p_left = self.frame_cfg.get("pad_left", 0.8)
+        raw_p_bottom = self.frame_cfg.get("pad_bottom", 0.6)
+        raw_p_right = self.frame_cfg.get("pad_right", 0.5)
+        raw_p_top = self.frame_cfg.get("pad_top", 0.5)
+        
+        # In Matplotlib subplots_adjust, `left`, `right`, `bottom`, `top` are explicitly fractional coordinates of the figure.
+        # `left` is the distance from the left edge of the figure, `right` is the distance from the left edge.
+        # `bottom` is the distance from the bottom edge, `top` is the distance from the bottom edge.
+        # Therefore, to have fixed padding from the top/right edges, we must subtract the respective padding from the total dimension.
+        frac_left = (raw_p_left / w) if w > 0 else 0.13
+        frac_right = 1.0 - (raw_p_right / w) if w > 0 else 0.90
+        frac_bottom = (raw_p_bottom / h) if h > 0 else 0.10
+        frac_top = 1.0 - (raw_p_top / h) if h > 0 else 0.90
+        
+        # If square aspect is enabled, the actual drawn figure height might be constrained by the canvas width or vice-versa
+        # in set_aspect_ratio. Let's maintain the user's explicit fractions.
+        frac_right = max(frac_left + 0.05, frac_right)
+        frac_top = max(frac_bottom + 0.05, frac_top)
+
         if self.frame_cfg.get("square_aspect", True):
             # Enforce tight clipping around the plot when building a strict square
-            # Instead of tight_layout which moves things organically each time, use a fixed generous 
-            # margin so titles don't get shifted recursively
             self.workspace.set_aspect_ratio(1.0)
-            self.figure.subplots_adjust(left=0.13, right=0.90, top=0.90, bottom=0.10)
+            self.figure.subplots_adjust(left=frac_left, right=frac_right, top=frac_top, bottom=frac_bottom)
         else:
             # Let it stretch freely based on initial subplots_adjust
             self.workspace.set_aspect_ratio(None)
-            self.figure.subplots_adjust(left=0.13, right=0.95, top=0.92, bottom=0.10)
+            self.figure.subplots_adjust(left=frac_left, right=frac_right, top=frac_top, bottom=frac_bottom)
 
         self.canvas.draw()
         
@@ -1446,6 +1476,44 @@ class FigaroApp(QMainWindow):
                 self.status.showMessage(f"Successfully loaded plot package: {file_name}")
             except Exception as e:
                 self.status.showMessage(f"Failed to load package: {e}")
+
+    def save_plot_template(self):
+        file_name, _ = QFileDialog.getSaveFileName(
+            self, "Save Plot Template", "", "Plot Template Files (*.plttpl);;All Files (*)"
+        )
+        if file_name:
+            # Drop data variables; hold onto maps, axis_cfg, frame_cfg, legend_cfg
+            tpl_state = {
+                "maps": self.maps,
+                "axis_cfg": self.axis_cfg,
+                "frame_cfg": self.frame_cfg,
+                "legend_cfg": self.legend_cfg
+            }
+            try:
+                with open(file_name, 'wb') as f:
+                    pickle.dump(tpl_state, f)
+                self.status.showMessage(f"Successfully saved plot template: {file_name}")
+            except Exception as e:
+                self.status.showMessage(f"Failed to save plot template: {e}")
+
+    def open_plot_template(self):
+        file_name, _ = QFileDialog.getOpenFileName(
+            self, "Open Plot Template", "", "Plot Template Files (*.plttpl);;All Files (*)"
+        )
+        if file_name:
+            try:
+                with open(file_name, 'rb') as f:
+                    tpl_state = pickle.load(f)
+                
+                self.maps = tpl_state.get("maps", self.maps)
+                self.axis_cfg = tpl_state.get("axis_cfg", self.axis_cfg)
+                self.frame_cfg = tpl_state.get("frame_cfg", self.frame_cfg)
+                self.legend_cfg = tpl_state.get("legend_cfg", self.legend_cfg)
+                
+                self.update_plot()
+                self.status.showMessage(f"Successfully loaded plot template: {file_name}")
+            except Exception as e:
+                self.status.showMessage(f"Failed to load plot template: {e}")
 
     def update_window_title(self):
         base_title = "Figaro"
@@ -1527,8 +1595,9 @@ class FigaroApp(QMainWindow):
                 except BaseException:
                     pass
 
-    def load_data(self):
-        file_name, _ = QFileDialog.getOpenFileName(self, "Open 2D Data File", "", "DAT Files (*.dat);;CSV Files (*.csv);;Text Files (*.txt);;All Files (*)")
+    def load_data(self, file_name=None):
+        if isinstance(file_name, bool) or not file_name:
+            file_name, _ = QFileDialog.getOpenFileName(self, "Open 2D Data File", "", "DAT Files (*.dat);;CSV Files (*.csv);;Text Files (*.txt);;All Files (*)")
         if file_name:
             # Check if data already exists and prompt user
             choice = "replace"
@@ -1737,7 +1806,11 @@ class FigaroApp(QMainWindow):
             "pos_x": 0.5,
             "pos_y": 0.5,
             "square_aspect": True,
-            "show_border": False
+            "show_border": False,
+            "pad_left": 0.8,
+            "pad_right": 0.5,
+            "pad_bottom": 0.6,
+            "pad_top": 0.5
         }
         
         self.legend_cfg = {
@@ -1759,3 +1832,22 @@ class FigaroApp(QMainWindow):
             event.accept()
         else:
             event.ignore()
+
+    def dragEnterEvent(self, event):
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+        else:
+            super().dragEnterEvent(event)
+
+    def dropEvent(self, event):
+        if event.mimeData().hasUrls():
+            urls = event.mimeData().urls()
+            if urls:
+                file_path = urls[0].toLocalFile()
+                if file_path.lower().endswith(('.dat', '.csv', '.txt')):
+                    self.load_data(file_path)
+                else:
+                    QMessageBox.warning(self, "Unsupported Format", "Unsupported data format. Supported formats are: .dat, .csv, .txt")
+            event.acceptProposedAction()
+        else:
+            super().dropEvent(event)

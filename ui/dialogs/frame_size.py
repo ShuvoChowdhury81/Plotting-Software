@@ -22,7 +22,11 @@ class FrameSizePositionDialog(QDialog):
                 "pos_x": 1.25,
                 "pos_y": 2.5,
                 "square_aspect": True,
-                "show_border": True
+                "show_border": True,
+                "pad_left": 0.8,
+                "pad_right": 0.5,
+                "pad_bottom": 0.6,
+                "pad_top": 0.5
             }
         self.cfg = copy.deepcopy(parent.frame_cfg)
         
@@ -108,6 +112,52 @@ class FrameSizePositionDialog(QDialog):
         form_size.addRow("", self.chk_border)
         
         main_layout.addWidget(grp_size)
+        
+        # --- Plot Padding ---
+        grp_pad = QGroupBox("Plot Padding (inches)")
+        pad_layout = QVBoxLayout(grp_pad)
+        
+        # We'll use two HBoxes, one for top/bottom, one for left/right
+        hbox_pad_tb = QHBoxLayout()
+        self.sp_pad_top = QDoubleSpinBox()
+        self.sp_pad_top.setRange(0.0, 10.0)
+        self.sp_pad_top.setSingleStep(0.1)
+        self.sp_pad_top.setValue(self.cfg.get("pad_top", 0.5))
+        self.sp_pad_top.valueChanged.connect(lambda v: self.update_cfg("pad_top", v))
+        
+        self.sp_pad_bottom = QDoubleSpinBox()
+        self.sp_pad_bottom.setRange(0.0, 10.0)
+        self.sp_pad_bottom.setSingleStep(0.1)
+        self.sp_pad_bottom.setValue(self.cfg.get("pad_bottom", 0.6))
+        self.sp_pad_bottom.valueChanged.connect(lambda v: self.update_cfg("pad_bottom", v))
+        
+        hbox_pad_tb.addWidget(QLabel("Top:"))
+        hbox_pad_tb.addWidget(self.sp_pad_top)
+        hbox_pad_tb.addWidget(QLabel("Bottom:"))
+        hbox_pad_tb.addWidget(self.sp_pad_bottom)
+        pad_layout.addLayout(hbox_pad_tb)
+        
+        hbox_pad_lr = QHBoxLayout()
+        self.sp_pad_left = QDoubleSpinBox()
+        self.sp_pad_left.setRange(0.0, 10.0)
+        self.sp_pad_left.setSingleStep(0.1)
+        self.sp_pad_left.setValue(self.cfg.get("pad_left", 0.8))
+        self.sp_pad_left.valueChanged.connect(lambda v: self.update_cfg("pad_left", v))
+        
+        self.sp_pad_right = QDoubleSpinBox()
+        self.sp_pad_right.setRange(0.0, 10.0)
+        self.sp_pad_right.setSingleStep(0.1)
+        self.sp_pad_right.setValue(self.cfg.get("pad_right", 0.5))
+        self.sp_pad_right.valueChanged.connect(lambda v: self.update_cfg("pad_right", v))
+        
+        hbox_pad_lr.addWidget(QLabel("Left:"))
+        hbox_pad_lr.addWidget(self.sp_pad_left)
+        hbox_pad_lr.addWidget(QLabel("Right:"))
+        hbox_pad_lr.addWidget(self.sp_pad_right)
+        pad_layout.addLayout(hbox_pad_lr)
+        
+        main_layout.addWidget(grp_pad)
+        
         main_layout.addStretch()
         
         # --- Bottom Dialog buttons ---
