@@ -577,40 +577,42 @@ class MappingStyleDialog(QDialog):
             self.maps[row][key] = value
             
     def create_map(self):
-        new_map = {
-            "show": True,
-            "show_lines": True,
-            "name": f"Map {len(self.maps) + 1}",
-            "x_var_idx": 0,
-            "y_var_idx": min(1, len(self.var_names) - 1) if self.var_names else 0,
-            "color": "#ff7f0e",
-            "line_style": "Solid",
-            "line_width": 2,
-            "pattern_length": "2.00%",
-            "curve_type": "Line segment",
-            "dependent_var": "Auto",
-            "curve_points": "N/A",
-            "curve_setting": "N/A",
-            "show_equation": False,
-            "show_r_squared": False,
-            "show_symbols": True,
-            "symbol_shape": "Square",
-            "symbol_size": "2.50%",
-            "symbol_spacing": "Draw all",
-            "symbol_outline_color": "#ff7f0e",
-            "symbol_thickness": "0.10%",
-            "symbol_fill_mode": "None",
-            "symbol_fill_color": "#ffffff",
-            "show_error_bars": False,
-            "error_bar_variable_idx": min(2, len(self.var_names) - 1) if self.var_names else 0,
-            "error_bar_type": "Vertical",
-            "error_bar_spacing": "Draw all",
-            "error_bar_color": "#ff7f0e",
-            "error_bar_size": "2.50%",
-            "error_bar_line_thickness": "0.10%"
-        }
-        self.maps.append(new_map)
-        self.setup_tables()
+        from ui.dialogs.create_map_dialog import CreateMapDialog
+        dlg = CreateMapDialog(
+            self,
+            var_names=self.var_names,
+            data_vars=self.parent_window.data_vars,
+            existing_map_count=len(self.maps),
+        )
+        if dlg.exec() and dlg.result_map is not None:
+            new_map = dlg.result_map
+
+            # If equation mode was used, append computed data as new variables
+            if "_eq_x_data" in new_map:
+                x_data = new_map.pop("_eq_x_data")
+                y_data = new_map.pop("_eq_y_data")
+                x_name = new_map.pop("_eq_x_name")
+                y_name = new_map.pop("_eq_y_name")
+                new_map.pop("_eq_x_expr", None)
+                new_map.pop("_eq_y_expr", None)
+
+                # Append to the parent window's data
+                x_idx = len(self.parent_window.data_vars)
+                self.parent_window.data_vars.append(x_data)
+                self.parent_window.var_names.append(x_name)
+
+                y_idx = len(self.parent_window.data_vars)
+                self.parent_window.data_vars.append(y_data)
+                self.parent_window.var_names.append(y_name)
+
+                new_map["x_var_idx"] = x_idx
+                new_map["y_var_idx"] = y_idx
+
+                # Keep local var_names in sync
+                self.var_names = self.parent_window.var_names
+
+            self.maps.append(new_map)
+            self.setup_tables()
         
     def delete_map(self):
         idx = self.tabs.currentIndex()

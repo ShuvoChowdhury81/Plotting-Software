@@ -25,6 +25,7 @@ from ui.dialogs.axis_details import AxisDetailsDialog
 from ui.dialogs.frame_size import FrameSizePositionDialog
 from ui.dialogs.append_data import AppendDataDialog
 from ui.dialogs.data_manager import DataManagerDialog
+from ui.dialogs.histogram_settings import HistogramSettingsDialog
 
 class WorkspaceWidget(QWidget):
     def __init__(self, parent=None):
@@ -395,6 +396,34 @@ class FigaroApp(QMainWindow):
             "show_border": False
         }
         
+        self.histogram_cfg = {
+            # Binning
+            "bin_method": "Auto (Sturges)",
+            "bin_count": 10,
+            "bin_width": 1.0,
+            "bin_min": None,
+            "bin_max": None,
+            # Normalization
+            "normalization": "Count",
+            # Visual
+            "hist_type": "bar",
+            "alpha": 0.7,
+            "orientation": "Vertical",
+            "bar_color": None,
+            "edge_color": "#333333",
+            "edge_width": 0.8,
+            # Overlays
+            "show_kde": False,
+            "kde_bw_method": "Auto (Scott)",
+            "kde_bw_value": 0.5,
+            "kde_bw_adjust": 1.0,
+            "show_mean_line": False,
+            "show_median_line": False,
+            # Advanced
+            "use_weights": False,
+            "weight_var_idx": None,
+        }
+        
         # --- UI Setup ---
         self.setup_menu_bar()
         self.setup_toolbar()
@@ -561,12 +590,19 @@ class FigaroApp(QMainWindow):
         self.cb_plot_type = QComboBox()
         self.cb_plot_type.addItems(["XY Line", "2D Coordinates", "3D Coordinates", "Histogram"])
         self.cb_plot_type.setCurrentText("XY Line")
+        self.cb_plot_type.currentTextChanged.connect(self._on_plot_type_changed)
         layout.addWidget(self.cb_plot_type)
+        
+        # --- XY-specific controls (hidden in Histogram mode) ---
+        self.xy_controls_widget = QWidget()
+        xy_layout = QVBoxLayout(self.xy_controls_widget)
+        xy_layout.setContentsMargins(0, 0, 0, 0)
+        xy_layout.setSpacing(4)
         
         # Show mapping layers label
         lbl_layers = QLabel("Show mapping layers")
         lbl_layers.setStyleSheet("color: #333; font-weight: 500;")
-        layout.addWidget(lbl_layers)
+        xy_layout.addWidget(lbl_layers)
         
         # Mapping layer checkboxes
         layers_vbox = QVBoxLayout()
@@ -592,12 +628,38 @@ class FigaroApp(QMainWindow):
         self.chk_layer_errorbars.toggled.connect(self._toggle_all_errorbars)
         layers_vbox.addWidget(self.chk_layer_errorbars)
         
-        layout.addLayout(layers_vbox)
+        xy_layout.addLayout(layers_vbox)
+        layout.addWidget(self.xy_controls_widget)
         
-        # Mapping Style button
-        btn_mapping = QPushButton("Mapping Style...")
-        btn_mapping.clicked.connect(self.open_mapping_style)
-        layout.addWidget(btn_mapping)
+        # --- Histogram-specific controls (hidden in XY mode) ---
+        self.hist_controls_widget = QWidget()
+        hist_layout = QVBoxLayout(self.hist_controls_widget)
+        hist_layout.setContentsMargins(0, 0, 0, 0)
+        hist_layout.setSpacing(4)
+        
+        lbl_hist = QLabel("Histogram options")
+        lbl_hist.setStyleSheet("color: #333; font-weight: 500;")
+        hist_layout.addWidget(lbl_hist)
+        
+        # Data variable selector for quick access
+        hist_var_layout = QHBoxLayout()
+        hist_var_layout.addWidget(QLabel("Variable:"))
+        self.cb_hist_var = QComboBox()
+        self.cb_hist_var.currentIndexChanged.connect(self._on_hist_var_changed)
+        hist_var_layout.addWidget(self.cb_hist_var)
+        hist_layout.addLayout(hist_var_layout)
+        
+        btn_hist_settings = QPushButton("Histogram Settings...")
+        btn_hist_settings.clicked.connect(self.open_histogram_settings)
+        hist_layout.addWidget(btn_hist_settings)
+        
+        self.hist_controls_widget.setVisible(False)
+        layout.addWidget(self.hist_controls_widget)
+        
+        # Mapping Style button (shared — hidden in Histogram mode)
+        self.btn_mapping = QPushButton("Mapping Style...")
+        self.btn_mapping.clicked.connect(self.open_mapping_style)
+        layout.addWidget(self.btn_mapping)
         
         # Hidden grid toggle (still referenced by update_plot grid rendering logic)
         self.btn_toggle_grid = QPushButton("Show Grid")
@@ -627,6 +689,39 @@ class FigaroApp(QMainWindow):
             m["show_error_bars"] = checked
         self.update_plot()
 
+    def _on_plot_type_changed(self, text):
+        """Toggle sidebar controls based on selected plot type."""
+        is_histogram = (text == "Histogram")
+        self.xy_controls_widget.setVisible(not is_histogram)
+        self.hist_controls_widget.setVisible(is_histogram)
+        self.btn_mapping.setVisible(not is_histogram)
+        
+        if is_histogram:
+            # Populate histogram variable dropdown with current variable names
+            self.cb_hist_var.blockSignals(True)
+            self.cb_hist_var.clear()
+            for j, v in enumerate(self.var_names):
+                self.cb_hist_var.addItem(f"{j+1}: {v}", j)
+            # Default to first mapping's y variable
+            if self.maps:
+                default_idx = self.maps[0].get("hist_var_idx", self.maps[0].get("y_var_idx", 0))
+                if default_idx < self.cb_hist_var.count():
+                    self.cb_hist_var.setCurrentIndex(default_idx)
+            self.cb_hist_var.blockSignals(False)
+        
+        self.update_plot()
+    
+    def _on_hist_var_changed(self, idx):
+        """Update the histogram variable for all mappings."""
+        if idx >= 0:
+            for m in self.maps:
+                m["hist_var_idx"] = idx
+            self.update_plot()
+    
+    def open_histogram_settings(self):
+        dialog = HistogramSettingsDialog(self)
+        dialog.exec()
+
     def open_data_table(self):
         if not self.data_vars:
             self.status.showMessage("Please load data before opening Data Set Manager.")
@@ -653,6 +748,15 @@ class FigaroApp(QMainWindow):
     def update_plot(self):
         self.ax.clear()
         
+        # Branch rendering based on plot type
+        plot_type = self.cb_plot_type.currentText()
+        if plot_type == "Histogram":
+            self._render_histogram()
+        else:
+            self._render_xy()
+    
+    def _render_xy(self):
+        """Render XY line/scatter/error bar plots from mapping structures."""
         # Iterate over mapping structures
         for m in self.maps:
             if not m.get("show", True): continue
@@ -964,6 +1068,236 @@ class FigaroApp(QMainWindow):
                                      fmt='none', ecolor=eb_color, elinewidth=eb_lw,
                                      capsize=eb_capsize, capthick=eb_lw, zorder=4)
         
+        self._apply_axis_config()
+    
+    def _gather_histogram_data(self):
+        """Collect all visible histogram data for computing shared bins."""
+        all_data = []
+        for m in self.maps:
+            if not m.get("show", True):
+                continue
+            var_idx = m.get("hist_var_idx", m.get("y_var_idx", 0))
+            if var_idx < len(self.data_vars):
+                d = self.data_vars[var_idx]
+                d = d[~np.isnan(d)]
+                all_data.append(d)
+        if all_data:
+            return np.concatenate(all_data)
+        return np.array([])
+    
+    def _compute_bins(self, cfg):
+        """Compute bin edges from histogram configuration."""
+        method = cfg.get("bin_method", "Auto (Sturges)")
+        all_data = self._gather_histogram_data()
+        
+        if method == "Manual (Count)":
+            count = cfg.get("bin_count", 10)
+            lo = cfg.get("bin_min")
+            hi = cfg.get("bin_max")
+            if len(all_data) == 0:
+                return 10
+            lo = lo if lo is not None else np.nanmin(all_data)
+            hi = hi if hi is not None else np.nanmax(all_data)
+            if lo >= hi:
+                hi = lo + 1
+            return np.linspace(lo, hi, count + 1)
+        
+        elif method == "Manual (Width)":
+            width = cfg.get("bin_width", 1.0)
+            if width <= 0:
+                width = 1.0
+            lo = cfg.get("bin_min")
+            hi = cfg.get("bin_max")
+            if len(all_data) == 0:
+                return 10
+            lo = lo if lo is not None else np.nanmin(all_data)
+            hi = hi if hi is not None else np.nanmax(all_data)
+            if lo >= hi:
+                hi = lo + width
+            return np.arange(lo, hi + width, width)
+        
+        elif method == "Integer":
+            if len(all_data) == 0:
+                return 10
+            lo = cfg.get("bin_min")
+            hi = cfg.get("bin_max")
+            lo = int(np.floor(lo if lo is not None else np.nanmin(all_data)))
+            hi = int(np.ceil(hi if hi is not None else np.nanmax(all_data)))
+            if lo >= hi:
+                hi = lo + 1
+            # Bins from lo-0.5 to hi+0.5 so each integer sits at the center
+            return np.arange(lo - 0.5, hi + 1.5, 1.0)
+        
+        else:
+            mapping = {
+                "Auto (Sturges)": "sturges",
+                "Auto (Scott)": "scott",
+                "Auto (Freedman-Diaconis)": "fd",
+                "Auto (sqrt)": "sqrt",
+            }
+            return mapping.get(method, "sturges")
+    
+    def _render_histogram(self):
+        """Render histogram from each visible mapping."""
+        cfg = self.histogram_cfg
+        bins = self._compute_bins(cfg)
+        orientation = 'horizontal' if cfg.get("orientation", "Vertical") == "Horizontal" else 'vertical'
+        
+        # Matplotlib does not support auto-binning strings with weighted data.
+        # Pre-compute numeric bin edges when weights will be present (either
+        # explicit user weights or normalization modes that inject weights).
+        norm_mode = cfg.get("normalization", "Count")
+        needs_weights = cfg.get("use_weights") or norm_mode in ("Probability", "Percentage", "Peak (Max = 1)")
+        if needs_weights and isinstance(bins, str):
+            all_data = self._gather_histogram_data()
+            if len(all_data) > 0:
+                bins = np.histogram_bin_edges(all_data, bins=bins)
+            else:
+                bins = 10
+        
+        # Determine normalization settings
+        density = norm_mode == "Density"
+        cumulative = norm_mode == "Cumulative (CDF)"
+        
+        for m in self.maps:
+            if not m.get("show", True):
+                continue
+            var_idx = m.get("hist_var_idx", m.get("y_var_idx", 0))
+            if var_idx >= len(self.data_vars):
+                continue
+            
+            raw_data = self.data_vars[var_idx]
+            nan_mask = ~np.isnan(raw_data)
+            data = raw_data[nan_mask]
+            if len(data) == 0:
+                continue
+            
+            # Weights — apply the same NaN mask so lengths always match
+            weights = None
+            if cfg.get("use_weights") and cfg.get("weight_var_idx") is not None:
+                w_idx = cfg["weight_var_idx"]
+                if w_idx < len(self.data_vars):
+                    w_raw = self.data_vars[w_idx]
+                    # Align: use the shorter of the two arrays, then apply nan_mask
+                    min_len = min(len(raw_data), len(w_raw))
+                    mask = nan_mask[:min_len]
+                    weights = w_raw[:min_len][mask]
+                    # If lengths still don't match (different dataset sizes), truncate
+                    if len(weights) != len(data):
+                        shared = min(len(weights), len(data))
+                        weights = weights[:shared]
+                        data = data[:shared]
+                    # Replace any NaN in weights with 0
+                    weights = np.nan_to_num(weights, nan=0.0)
+            
+            try:
+                # Compute hist_weights for non-standard normalization modes
+                hist_weights = weights
+                n = len(data)
+                
+                if norm_mode in ("Probability", "Percentage"):
+                    if hist_weights is not None:
+                        w_sum = np.sum(hist_weights)
+                        if w_sum > 0:
+                            hist_weights = hist_weights / w_sum
+                        else:
+                            hist_weights = np.ones(n) / n
+                    else:
+                        hist_weights = np.ones(n) / n
+                    
+                    if norm_mode == "Percentage":
+                        hist_weights = hist_weights * 100.0
+                
+                elif norm_mode == "Peak (Max = 1)":
+                    # Pre-compute counts to find the max bar, then scale so max = 1
+                    counts, _ = np.histogram(data, bins=bins, weights=weights)
+                    max_count = counts.max() if counts.max() > 0 else 1.0
+                    if hist_weights is not None:
+                        hist_weights = hist_weights / max_count
+                    else:
+                        hist_weights = np.ones(n) / max_count
+                
+                self.ax.hist(
+                    data, bins=bins,
+                    density=density, cumulative=cumulative,
+                    weights=hist_weights,
+                    histtype=cfg.get("hist_type", "bar"),
+                    alpha=cfg.get("alpha", 0.7),
+                    color=cfg.get("bar_color") or m.get("color", "#1f77b4"),
+                    edgecolor=cfg.get("edge_color", "#333333"),
+                    linewidth=cfg.get("edge_width", 0.8),
+                    orientation=orientation,
+                    label=m.get("name", "Histogram"),
+                )
+            except Exception as e:
+                print(f"Histogram rendering failed: {e}")
+                continue
+            
+            # KDE overlay — per-mapping flag, falls back to global
+            show_kde = m.get("show_kde", cfg.get("show_kde", False))
+            if show_kde and len(data) > 1:
+                try:
+                    from scipy.stats import gaussian_kde
+                    
+                    # Determine bandwidth method
+                    bw_method_name = cfg.get("kde_bw_method", "Auto (Scott)")
+                    if bw_method_name == "Auto (Scott)":
+                        bw_method = "scott"
+                    elif bw_method_name == "Auto (Silverman)":
+                        bw_method = "silverman"
+                    elif bw_method_name == "Manual":
+                        bw_method = cfg.get("kde_bw_value", 0.5)
+                    else:
+                        bw_method = "scott"
+                    
+                    kde = gaussian_kde(data, bw_method=bw_method)
+                    
+                    # Apply bandwidth adjustment multiplier
+                    bw_adjust = cfg.get("kde_bw_adjust", 1.0)
+                    if bw_adjust != 1.0:
+                        kde.set_bandwidth(kde.factor * bw_adjust)
+                    
+                    x_range = np.linspace(data.min(), data.max(), 200)
+                    kde_vals = kde(x_range)
+                    # Scale KDE to match histogram if not density mode
+                    if not density and norm_mode not in ("Probability", "Percentage"):
+                        bin_width = (data.max() - data.min()) / (len(bins) - 1 if hasattr(bins, '__len__') else 10)
+                        kde_vals = kde_vals * len(data) * bin_width
+                    elif norm_mode == "Percentage":
+                        kde_vals = kde_vals * 100.0
+                    
+                    kde_label = f'{m.get("name", "Histogram")} KDE'
+                    if orientation == 'vertical':
+                        self.ax.plot(x_range, kde_vals, color=m.get("color"), linewidth=1.5, linestyle='--', label=kde_label)
+                    else:
+                        self.ax.plot(kde_vals, x_range, color=m.get("color"), linewidth=1.5, linestyle='--', label=kde_label)
+                except Exception:
+                    pass
+            
+            # Mean line — per-mapping flag, falls back to global
+            show_mean = m.get("show_mean_line", cfg.get("show_mean_line", False))
+            if show_mean:
+                try:
+                    mean_val = np.average(data, weights=weights) if weights is not None else np.mean(data)
+                    if orientation == 'vertical':
+                        self.ax.axvline(mean_val, color=m.get("color", "#000000"), linestyle='-.', linewidth=1.5, label=f'Mean: {mean_val:.3g}')
+                    else:
+                        self.ax.axhline(mean_val, color=m.get("color", "#000000"), linestyle='-.', linewidth=1.5, label=f'Mean: {mean_val:.3g}')
+                except Exception:
+                    pass
+            
+            # Median line — per-mapping flag, falls back to global
+            show_median = m.get("show_median_line", cfg.get("show_median_line", False))
+            if show_median:
+                median_val = np.median(data)
+                if orientation == 'vertical':
+                    self.ax.axvline(median_val, color=m.get("color", "#000000"), linestyle=':', linewidth=1.5, label=f'Median: {median_val:.3g}')
+                else:
+                    self.ax.axhline(median_val, color=m.get("color", "#000000"), linestyle=':', linewidth=1.5, label=f'Median: {median_val:.3g}')
+        
+        self._apply_axis_config()
+    
+    def _apply_axis_config(self):
         # --- Frame Size & Aspect Ratio Implementation ---
         # The axes will dynamically stretch according to the subplots_adjust paddings.
         self.ax.set_box_aspect(None)
@@ -1435,7 +1769,9 @@ class FigaroApp(QMainWindow):
                 "datasets": self.datasets,
                 "axis_cfg": self.axis_cfg,
                 "frame_cfg": self.frame_cfg,
-                "legend_cfg": self.legend_cfg
+                "legend_cfg": self.legend_cfg,
+                "histogram_cfg": self.histogram_cfg,
+                "plot_type": self.cb_plot_type.currentText(),
             }
             try:
                 with open(file_name, 'wb') as f:
@@ -1468,6 +1804,11 @@ class FigaroApp(QMainWindow):
                 self.axis_cfg = app_state.get("axis_cfg", self.axis_cfg)
                 self.frame_cfg = app_state.get("frame_cfg", {})
                 self.legend_cfg = app_state.get("legend_cfg", {})
+                self.histogram_cfg = app_state.get("histogram_cfg", self.histogram_cfg)
+                
+                # Restore plot type
+                saved_type = app_state.get("plot_type", "XY Line")
+                self.cb_plot_type.setCurrentText(saved_type)
                 
                 self.current_pkg_file = file_name
                 self.update_window_title()
@@ -1487,7 +1828,9 @@ class FigaroApp(QMainWindow):
                 "maps": self.maps,
                 "axis_cfg": self.axis_cfg,
                 "frame_cfg": self.frame_cfg,
-                "legend_cfg": self.legend_cfg
+                "legend_cfg": self.legend_cfg,
+                "histogram_cfg": self.histogram_cfg,
+                "plot_type": self.cb_plot_type.currentText(),
             }
             try:
                 with open(file_name, 'wb') as f:
@@ -1509,6 +1852,10 @@ class FigaroApp(QMainWindow):
                 self.axis_cfg = tpl_state.get("axis_cfg", self.axis_cfg)
                 self.frame_cfg = tpl_state.get("frame_cfg", self.frame_cfg)
                 self.legend_cfg = tpl_state.get("legend_cfg", self.legend_cfg)
+                self.histogram_cfg = tpl_state.get("histogram_cfg", self.histogram_cfg)
+                
+                saved_type = tpl_state.get("plot_type", "XY Line")
+                self.cb_plot_type.setCurrentText(saved_type)
                 
                 self.update_plot()
                 self.status.showMessage(f"Successfully loaded plot template: {file_name}")
@@ -1822,6 +2169,32 @@ class FigaroApp(QMainWindow):
             "font": "Arial",
             "fontsize": 10
         }
+        
+        self.histogram_cfg = {
+            "bin_method": "Auto (Sturges)",
+            "bin_count": 10,
+            "bin_width": 1.0,
+            "bin_min": None,
+            "bin_max": None,
+            "normalization": "Count",
+            "hist_type": "bar",
+            "alpha": 0.7,
+            "orientation": "Vertical",
+            "bar_color": None,
+            "edge_color": "#333333",
+            "edge_width": 0.8,
+            "show_kde": False,
+            "kde_bw_method": "Auto (Scott)",
+            "kde_bw_value": 0.5,
+            "kde_bw_adjust": 1.0,
+            "show_mean_line": False,
+            "show_median_line": False,
+            "use_weights": False,
+            "weight_var_idx": None,
+        }
+        
+        # Reset plot type to XY Line
+        self.cb_plot_type.setCurrentText("XY Line")
         
         self.update_window_title()
         self.update_plot()
