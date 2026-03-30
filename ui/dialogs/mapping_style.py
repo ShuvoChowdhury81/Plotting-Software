@@ -150,9 +150,9 @@ class MappingStyleDialog(QDialog):
     def setup_def_table(self):
         self.table_def.blockSignals(True)
         self.table_def.clear()
-        self.table_def.setColumnCount(5)
+        self.table_def.setColumnCount(6)
         self.table_def.setHorizontalHeaderLabels([
-            "Map\nNumber", "Map\nName", "Show\nMap", "X-Axis\nVariable", "Y-Axis\nVariable"
+            "Map\nNumber", "Map\nName", "Show\nMap", "X-Axis\nVariable", "Y-Axis\nVariable", "Y\nAxis"
         ])
         
         self.table_def.setRowCount(len(self.maps))
@@ -193,6 +193,13 @@ class MappingStyleDialog(QDialog):
                 combo_y.setCurrentIndex(m.get("y_var_idx", 0))
             combo_y.currentIndexChanged.connect(lambda idx, row=i: self.update_map(row, "y_var_idx", idx))
             self.table_def.setCellWidget(i, 4, combo_y)
+            
+            # Y Axis selector (Y1 = left, Y2 = right)
+            combo_yaxis = QComboBox()
+            combo_yaxis.addItems(["Y1", "Y2"])
+            combo_yaxis.setCurrentText(m.get("y_axis", "Y1"))
+            combo_yaxis.currentTextChanged.connect(lambda text, row=i: self.update_map(row, "y_axis", text))
+            self.table_def.setCellWidget(i, 5, combo_yaxis)
             
         self.table_def.resizeColumnsToContents()
         self.table_def.blockSignals(False)

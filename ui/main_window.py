@@ -4,7 +4,7 @@ import numpy as np
 import copy
 from scipy import interpolate
 import matplotlib
-matplotlib.rcParams['font.sans-serif'] = ['Helvetica', 'Arial', 'DejaVu Sans', 'sans-serif']
+matplotlib.rcParams['font.sans-serif'] = ['Arial', 'DejaVu Sans', 'Segoe UI', 'sans-serif']
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qtagg import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
@@ -26,12 +26,13 @@ from ui.dialogs.frame_size import FrameSizePositionDialog
 from ui.dialogs.append_data import AppendDataDialog
 from ui.dialogs.data_manager import DataManagerDialog
 from ui.dialogs.histogram_settings import HistogramSettingsDialog
+from ui.dialogs.bar_chart_settings import BarChartSettingsDialog
 
 class WorkspaceWidget(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
-        self.setStyleSheet("background-color: #4a4a4a;")
+        self.setStyleSheet("background-color: #e5e7eb;")
         self.canvas = None
         self.aspect_ratio = None # None means stretch to fill
 
@@ -104,100 +105,125 @@ class FigaroApp(QMainWindow):
         _check_img = _check_img_path.replace("\\", "/")
         
         stylesheet = f"""
-            /* General Application Background */
+            /* ── Global ─────────────────────────────────────── */
             QMainWindow, QDialog {{ background-color: #f8fafc; }}
-
-            /* Font definitions for consistency across widgets */
             QWidget {{
-                font-family: "Segoe UI", "Open Sans", "Helvetica Neue", Arial, sans-serif;
+                font-family: "Segoe UI", Arial, sans-serif;
                 font-size: 13px;
                 color: #334155;
             }}
 
-            /* Styling the Menu Bar */
+            /* ── Menu Bar ───────────────────────────────────── */
             QMenuBar {{
-                background-color: #ffffff;
-                border-bottom: 1px solid #e2e8f0;
+                background-color: #1e1e2e;
+                border-bottom: 2px solid #4f46e5;
+                color: #e2e8f0;
             }}
             QMenuBar::item {{
-                padding: 6px 10px;
+                padding: 7px 12px;
                 background: transparent;
+                color: #cbd5e1;
             }}
             QMenuBar::item:selected {{
-                background-color: #f1f5f9;
-                color: #0f172a;
+                background-color: #2d2d44;
+                color: #ffffff;
                 border-radius: 4px;
             }}
 
-            /* ToolBar styling */
+            /* ── Toolbar ────────────────────────────────────── */
             QToolBar {{
                 background-color: #ffffff;
-                border-bottom: 1px solid #e2e8f0;
-                padding: 4px;
-                spacing: 8px;
+                border-bottom: 2px solid #e2e8f0;
+                padding: 3px 6px;
+                spacing: 2px;
+            }}
+            QToolBar QLabel {{
+                color: #94a3b8;
+                font-size: 11px;
+                font-weight: 600;
+                padding: 0 6px;
+                text-transform: uppercase;
             }}
             QToolBar QPushButton {{
                 background-color: transparent;
                 border: 1px solid transparent;
                 border-radius: 6px;
-                padding: 6px 14px;
+                padding: 7px 14px;
                 font-weight: 600;
+                font-size: 12px;
                 color: #475569;
             }}
             QToolBar QPushButton:hover {{
-                background-color: #f1f5f9;
-                border: 1px solid #cbd5e1;
-                color: #0f172a;
+                background-color: #eef2ff;
+                border: 1px solid #c7d2fe;
+                color: #4338ca;
             }}
             QToolBar QPushButton:pressed {{
-                background-color: #e2e8f0;
+                background-color: #e0e7ff;
+            }}
+            QToolBar QPushButton:checked {{
+                background-color: #4f46e5;
+                border: 1px solid #4338ca;
+                color: #ffffff;
             }}
 
-            /* QDockWidget (Sidebar) */
+            /* ── Dock Widget (Properties Panel – dark sidebar) ── */
             QDockWidget {{
-                color: #334155;
+                color: #e2e8f0;
                 font-weight: 600;
-                border: 1px solid #e2e8f0;
+                border: none;
             }}
             QDockWidget::title {{
                 text-align: left;
-                background: #f1f5f9;
-                padding: 8px 12px;
-                font-weight: 600;
-                color: #0f172a;
-                border-bottom: 1px solid #e2e8f0;
+                background: #1e1e2e;
+                padding: 10px 14px;
+                font-weight: 700;
+                font-size: 13px;
+                color: #e2e8f0;
+                border-bottom: 2px solid #4f46e5;
             }}
 
-            /* Fixes for dark/blue unreadable dialogs (ComboBox drop-downs, right click menus, file dialogs) */
+            /* ── Dropdown / List / Menu fixes ────────────────── */
             QListView, QTreeView, QTableView {{
                 background-color: #ffffff;
                 color: #000000;
                 alternate-background-color: #f8fafc;
             }}
             QListView::item:selected, QTreeView::item:selected {{
-                background-color: #bfdbfe;
+                background-color: #c7d2fe;
                 color: #000000;
             }}
             QMenu {{
                 background-color: #ffffff;
-                color: #000000;
-                border: 1px solid #cbd5e1;
+                color: #1e293b;
+                border: 1px solid #e2e8f0;
+                border-radius: 6px;
+                padding: 4px;
+            }}
+            QMenu::item {{
+                padding: 6px 24px;
+                border-radius: 4px;
             }}
             QMenu::item:selected {{
-                background-color: #bfdbfe;
-                color: #000000;
+                background-color: #eef2ff;
+                color: #4338ca;
+            }}
+            QMenu::separator {{
+                height: 1px;
+                background: #e2e8f0;
+                margin: 4px 8px;
             }}
             QMessageBox {{
                 background-color: #ffffff;
                 color: #000000;
             }}
 
-            /* GroupBox and Forms */
+            /* ── GroupBox ───────────────────────────────────── */
             QGroupBox {{
                 font-weight: 600;
                 color: #0f172a;
-                border: 1px solid #cbd5e1;
-                border-radius: 6px;
+                border: 1px solid #e2e8f0;
+                border-radius: 8px;
                 margin-top: 16px;
                 padding-top: 16px;
                 background-color: #ffffff;
@@ -206,59 +232,59 @@ class FigaroApp(QMainWindow):
                 subcontrol-origin: margin;
                 left: 14px;
                 padding: 0 6px;
-                color: #1d4ed8;
+                color: #4f46e5;
             }}
 
-            /* Generic Push Buttons inside dialogs/docks */
+            /* ── Buttons (dialogs) ──────────────────────────── */
             QPushButton {{
                 background-color: #ffffff;
                 color: #334155;
-                border: 1px solid #cbd5e1;
-                border-radius: 4px;
-                padding: 6px 12px;
+                border: 1px solid #e2e8f0;
+                border-radius: 6px;
+                padding: 7px 14px;
                 font-weight: 500;
             }}
             QPushButton:hover {{
                 background-color: #f8fafc;
-                border: 1px solid #94a3b8;
-                color: #0f172a;
+                border: 1px solid #a5b4fc;
+                color: #4338ca;
             }}
             QPushButton:pressed {{
-                background-color: #e2e8f0;
+                background-color: #eef2ff;
             }}
             QPushButton:checked {{
-                background-color: #1d4ed8;
-                border: 1px solid #1e3a8a;
+                background-color: #4f46e5;
+                border: 1px solid #4338ca;
                 color: #ffffff;
             }}
 
-            /* LineEdits and SpinBoxes */
+            /* ── Inputs ────────────────────────────────────── */
             QLineEdit, QSpinBox, QDoubleSpinBox, QComboBox {{
-                border: 1px solid #cbd5e1;
-                border-radius: 4px;
-                padding: 5px;
+                border: 1px solid #e2e8f0;
+                border-radius: 6px;
+                padding: 5px 8px;
                 background-color: #ffffff;
                 color: #334155;
-                selection-background-color: #bfdbfe;
+                selection-background-color: #c7d2fe;
             }}
             QLineEdit:focus, QSpinBox:focus, QDoubleSpinBox:focus, QComboBox:focus {{
-                border: 1px solid #3b82f6;
+                border: 1.5px solid #4f46e5;
             }}
             QComboBox::drop-down {{
-                border-left: 1px solid #cbd5e1;
+                border-left: 1px solid #e2e8f0;
                 width: 24px;
             }}
 
-            /* Tab Widgets */
+            /* ── Tabs ──────────────────────────────────────── */
             QTabWidget::pane {{
-                border: 1px solid #cbd5e1;
+                border: 1px solid #e2e8f0;
                 background-color: #ffffff;
-                border-radius: 6px;
+                border-radius: 8px;
                 border-top-left-radius: 0;
             }}
             QTabBar::tab {{
                 background-color: #f1f5f9;
-                border: 1px solid #cbd5e1;
+                border: 1px solid #e2e8f0;
                 border-bottom: none;
                 border-top-left-radius: 6px;
                 border-top-right-radius: 6px;
@@ -269,22 +295,22 @@ class FigaroApp(QMainWindow):
             QTabBar::tab:selected {{
                 background-color: #ffffff;
                 font-weight: 600;
-                color: #1d4ed8;
+                color: #4f46e5;
             }}
             QTabBar::tab:hover:!selected {{
-                background-color: #e2e8f0;
-                color: #334155;
+                background-color: #eef2ff;
+                color: #4338ca;
             }}
 
-            /* Table Widget */
+            /* ── Table ─────────────────────────────────────── */
             QTableWidget {{
                 background-color: #ffffff;
                 alternate-background-color: #f8fafc;
                 gridline-color: #e2e8f0;
-                selection-background-color: #eff6ff;
-                selection-color: #1d4ed8;
-                border: 1px solid #cbd5e1;
-                border-radius: 6px;
+                selection-background-color: #eef2ff;
+                selection-color: #4338ca;
+                border: 1px solid #e2e8f0;
+                border-radius: 8px;
             }}
             QHeaderView::section {{
                 background-color: #f1f5f9;
@@ -296,14 +322,16 @@ class FigaroApp(QMainWindow):
                 border-left: none;
             }}
 
-            /* Status Bar */
+            /* ── Status Bar ────────────────────────────────── */
             QStatusBar {{
-                background-color: #f1f5f9;
-                color: #475569;
-                border-top: 1px solid #cbd5e1;
+                background-color: #1e1e2e;
+                color: #94a3b8;
+                border-top: none;
+                font-size: 12px;
+                padding: 2px 8px;
             }}
 
-            /* Radio Buttons */
+            /* ── Checkboxes & Radios ────────────────────────── */
             QRadioButton {{
                 color: #334155;
                 font-weight: 500;
@@ -317,11 +345,11 @@ class FigaroApp(QMainWindow):
                 background-color: #ffffff;
             }}
             QCheckBox::indicator:hover {{
-                border: 2px solid #3b82f6;
+                border: 2px solid #4f46e5;
             }}
             QCheckBox::indicator:checked {{
-                background-color: #2563eb;
-                border: 2px solid #2563eb;
+                background-color: #4f46e5;
+                border: 2px solid #4f46e5;
                 border-radius: 3px;
                 image: url({_check_img});
             }}
@@ -329,13 +357,16 @@ class FigaroApp(QMainWindow):
                 width: 16px;
                 height: 16px;
                 background-color: #ffffff;
-                border-radius: 8px; /* Circular */
-                border: 1px solid #cbd5e1;
+                border-radius: 8px;
+                border: 2px solid #cbd5e1;
+            }}
+            QRadioButton::indicator:hover {{
+                border: 2px solid #4f46e5;
             }}
             QRadioButton::indicator:checked {{
-                background-color: #424242;
+                background-color: #4f46e5;
                 border: 4px solid #ffffff;
-                outline: 2px solid #424242;
+                outline: 2px solid #4f46e5;
             }}
         """
         self.setStyleSheet(stylesheet)
@@ -382,7 +413,16 @@ class FigaroApp(QMainWindow):
             "Y1_title_offset": 10.0,
             "Y1_log": False,
             "Y1_reverse": False,
-            "Y1_line_show_grid_border": True
+            "Y1_line_show_grid_border": True,
+            # Secondary Y-axis (right side)
+            "Y2_show": False,
+            "Y2_title_text": "Y2 Axis",
+            "Y2_min": None,
+            "Y2_max": None,
+            "Y2_title_offset": 10.0,
+            "Y2_log": False,
+            "Y2_reverse": False,
+            "Y2_line_show_grid_border": False
         }
         
         self.frame_cfg = {
@@ -422,6 +462,18 @@ class FigaroApp(QMainWindow):
             # Advanced
             "use_weights": False,
             "weight_var_idx": None,
+        }
+        
+        self.bar_chart_cfg = {
+            "orientation": "Vertical",
+            "bar_width": 0.8,
+            "alpha": 0.85,
+            "edge_color": "#333333",
+            "edge_width": 0.8,
+            "bar_color": None,
+            "show_values": False,
+            "value_fmt": "{:.2g}",
+            "group_mode": "Grouped",
         }
         
         # --- UI Setup ---
@@ -504,42 +556,54 @@ class FigaroApp(QMainWindow):
         toolbar.setMovable(False)
         self.addToolBar(Qt.ToolBarArea.TopToolBarArea, toolbar)
         
-        btn_load = QPushButton("📂 Load Data")
-        btn_load.setFlat(True)
+        # ── File group ──
+        lbl_file = QLabel("FILE")
+        toolbar.addWidget(lbl_file)
+        
+        btn_load = QPushButton("Load Data")
+        btn_load.setToolTip("Load data from file (Ctrl+O)")
         btn_load.clicked.connect(self.load_data)
         toolbar.addWidget(btn_load)
         
-        # Quick access to Mapping style
-        btn_map = QPushButton("🗺️ Mapping Style")
-        btn_map.setStyleSheet("font-weight: bold; color: #d62728;")
-        btn_map.setFlat(True)
-        btn_map.clicked.connect(self.open_mapping_style)
-        toolbar.addWidget(btn_map)
-        
-        btn_legend = QPushButton("🏷️ Legend")
-        btn_legend.setFlat(True)
-        btn_legend.clicked.connect(self.open_legend_style)
-        toolbar.addWidget(btn_legend)
-        
-        btn_axis = QPushButton("📏 Axis Details")
-        btn_axis.setFlat(True)
-        btn_axis.clicked.connect(self.open_axis_details)
-        toolbar.addWidget(btn_axis)
-        
-        btn_frame = QPushButton("🖼️ Frame Size")
-        btn_frame.setFlat(True)
-        btn_frame.clicked.connect(self.open_frame_size)
-        toolbar.addWidget(btn_frame)
-        
-        btn_save = QPushButton("💾 Save Plot")
-        btn_save.setFlat(True)
+        btn_save = QPushButton("Save Plot")
+        btn_save.setToolTip("Export plot as image")
         btn_save.clicked.connect(self.save_plot)
         toolbar.addWidget(btn_save)
         
         toolbar.addSeparator()
         
-        self.btn_zoom = QPushButton("🔍 Zoom/Pan")
-        self.btn_zoom.setFlat(True)
+        # ── Configure group ──
+        lbl_config = QLabel("CONFIGURE")
+        toolbar.addWidget(lbl_config)
+        
+        btn_map = QPushButton("Mapping Style")
+        btn_map.setToolTip("Configure line styles, symbols, and curve fitting")
+        btn_map.clicked.connect(self.open_mapping_style)
+        toolbar.addWidget(btn_map)
+        
+        btn_axis = QPushButton("Axis Details")
+        btn_axis.setToolTip("Configure axis ranges, ticks, labels, and titles")
+        btn_axis.clicked.connect(self.open_axis_details)
+        toolbar.addWidget(btn_axis)
+        
+        btn_legend = QPushButton("Legend")
+        btn_legend.setToolTip("Configure legend position and styling")
+        btn_legend.clicked.connect(self.open_legend_style)
+        toolbar.addWidget(btn_legend)
+        
+        btn_frame = QPushButton("Frame Size")
+        btn_frame.setToolTip("Configure frame dimensions and padding")
+        btn_frame.clicked.connect(self.open_frame_size)
+        toolbar.addWidget(btn_frame)
+        
+        toolbar.addSeparator()
+        
+        # ── View group ──
+        lbl_view = QLabel("VIEW")
+        toolbar.addWidget(lbl_view)
+        
+        self.btn_zoom = QPushButton("Zoom / Pan")
+        self.btn_zoom.setToolTip("Toggle navigation mode (drag to pan, right-drag to zoom)")
         self.btn_zoom.setCheckable(True)
         self.btn_zoom.clicked.connect(self.toggle_zoom_pan)
         toolbar.addWidget(self.btn_zoom)
@@ -553,12 +617,13 @@ class FigaroApp(QMainWindow):
         self.canvas = FigureCanvas(self.figure)
         
         # Add a subtle border to the paper canvas to distinguish it from the grey background
-        self.canvas.setStyleSheet("border: 1px solid #707070; background-color: white;")
+        self.canvas.setStyleSheet("border: 1px solid #d1d5db; background-color: white;")
         
         self.workspace.set_canvas(self.canvas)
         
         self.ax = self.figure.add_subplot(111)
         self.ax.set_facecolor('white') # the plot area inside the bounding box is white
+        self.ax2 = None  # Secondary Y-axis (right side), created on demand
         
         self.mpl_toolbar = NavigationToolbar(self.canvas, self)
         self.mpl_toolbar.hide()
@@ -574,40 +639,128 @@ class FigaroApp(QMainWindow):
         
         self.setCentralWidget(self.workspace)
 
+    def _sidebar_section_header(self, text):
+        """Create a styled section header label for the dark sidebar."""
+        lbl = QLabel(text.upper())
+        lbl.setStyleSheet("""
+            color: #818cf8;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            padding: 8px 0 4px 0;
+            border-bottom: 1px solid #3f3f5e;
+            margin-bottom: 4px;
+        """)
+        return lbl
+
+    def _update_plot_description(self, plot_type):
+        """Update the sidebar description card based on the selected plot type."""
+        descriptions = {
+            "XY Line": (
+                "<b style='color:#c7d2fe;'>XY Line Plot</b><br>"
+                "Plot data as lines, curves, and scatter points "
+                "with optional error bars.<br><br>"
+                "<b style='color:#818cf8;'>Features:</b> "
+                "Line segments, polynomial &amp; power curve fits, "
+                "dual Y-axis (Y1/Y2), symbols, error bars<br><br>"
+                "<b style='color:#818cf8;'>Data:</b> "
+                ".dat, .csv, .txt (whitespace, comma, or tab-delimited)<br><br>"
+                "<b style='color:#818cf8;'>Tip:</b> "
+                "Use <i>Mapping Style → Definitions</i> to assign variables to axes "
+                "and switch curve fitting methods."
+            ),
+            "Histogram": (
+                "<b style='color:#c7d2fe;'>Histogram</b><br>"
+                "Visualize frequency distributions of a single variable "
+                "with optional KDE overlay.<br><br>"
+                "<b style='color:#818cf8;'>Features:</b> "
+                "Auto/manual binning, KDE smoothing, mean &amp; median lines, "
+                "count / probability / percentage normalization<br><br>"
+                "<b style='color:#818cf8;'>Data:</b> "
+                ".dat, .csv, .txt (numeric columns)<br><br>"
+                "<b style='color:#818cf8;'>Tip:</b> "
+                "Open <i>Histogram Settings</i> to fine-tune bin width, "
+                "normalization mode, and overlay options."
+            ),
+            "Bar Chart": (
+                "<b style='color:#c7d2fe;'>Bar Chart</b><br>"
+                "Compare categorical data with grouped or stacked bars.<br><br>"
+                "<b style='color:#818cf8;'>Features:</b> "
+                "Grouped &amp; stacked modes, horizontal / vertical orientation, "
+                "value labels, custom colors<br><br>"
+                "<b style='color:#818cf8;'>Data:</b> "
+                ".dat, .csv, .txt (one column for categories, others for values)<br><br>"
+                "<b style='color:#818cf8;'>Tip:</b> "
+                "Select the X (categories) and Y (heights) variables below, "
+                "then open <i>Bar Chart Settings</i> for advanced options."
+            ),
+        }
+        self.lbl_plot_desc.setText(descriptions.get(plot_type, ""))
+
     def setup_dockable_sidebar(self):
-        dock = QDockWidget("Plot", self)
+        dock = QDockWidget("Properties", self)
         dock.setAllowedAreas(Qt.DockWidgetArea.LeftDockWidgetArea | Qt.DockWidgetArea.RightDockWidgetArea)
         dock.setFeatures(QDockWidget.DockWidgetFeature.DockWidgetFloatable | QDockWidget.DockWidgetFeature.DockWidgetMovable)
+        dock.setMinimumWidth(200)
         
+        # Dark sidebar container
         dock_contents = QWidget()
-        dock_contents.setStyleSheet("background-color: white;")
+        dock_contents.setStyleSheet("""
+            QWidget { background-color: #1e1e2e; }
+            QLabel { color: #cbd5e1; font-size: 12px; }
+            QCheckBox { color: #e2e8f0; font-size: 12px; spacing: 6px; }
+            QCheckBox::indicator { border: 2px solid #4b5563; background-color: #2d2d44; border-radius: 3px; }
+            QCheckBox::indicator:hover { border: 2px solid #818cf8; }
+            QCheckBox::indicator:checked { background-color: #4f46e5; border: 2px solid #4f46e5; }
+            QComboBox { background-color: #2d2d44; color: #e2e8f0; border: 1px solid #3f3f5e; border-radius: 6px; padding: 6px 8px; font-size: 12px; }
+            QComboBox:hover { border: 1px solid #818cf8; }
+            QComboBox::drop-down { border-left: 1px solid #3f3f5e; width: 22px; }
+            QComboBox QAbstractItemView { background-color: #2d2d44; color: #e2e8f0; selection-background-color: #4f46e5; border: 1px solid #3f3f5e; }
+            QPushButton { background-color: #2d2d44; color: #e2e8f0; border: 1px solid #3f3f5e; border-radius: 6px; padding: 7px 12px; font-weight: 500; font-size: 12px; }
+            QPushButton:hover { background-color: #3d3d5c; border: 1px solid #818cf8; color: #c7d2fe; }
+            QPushButton:pressed { background-color: #4f46e5; color: #ffffff; }
+        """)
         layout = QVBoxLayout(dock_contents)
         layout.setAlignment(Qt.AlignmentFlag.AlignTop)
-        layout.setContentsMargins(8, 8, 8, 8)
-        layout.setSpacing(8)
+        layout.setContentsMargins(12, 8, 12, 8)
+        layout.setSpacing(4)
         
-        # Plot type dropdown
+        # ── Plot Type ──
+        layout.addWidget(self._sidebar_section_header("Plot Type"))
+        
         self.cb_plot_type = QComboBox()
-        self.cb_plot_type.addItems(["XY Line", "2D Coordinates", "3D Coordinates", "Histogram"])
+        self.cb_plot_type.addItems(["XY Line", "Histogram", "Bar Chart"])
         self.cb_plot_type.setCurrentText("XY Line")
         self.cb_plot_type.currentTextChanged.connect(self._on_plot_type_changed)
         layout.addWidget(self.cb_plot_type)
         
-        # --- XY-specific controls (hidden in Histogram mode) ---
+        # Plot type description card
+        self.lbl_plot_desc = QLabel()
+        self.lbl_plot_desc.setWordWrap(True)
+        self.lbl_plot_desc.setStyleSheet("""
+            color: #94a3b8;
+            font-size: 11px;
+            line-height: 1.4;
+            background-color: #252540;
+            border: 1px solid #3f3f5e;
+            border-radius: 6px;
+            padding: 8px 10px;
+            margin: 4px 0;
+        """)
+        self._update_plot_description("XY Line")
+        layout.addWidget(self.lbl_plot_desc)
+        
+        # ── XY-specific controls ──
         self.xy_controls_widget = QWidget()
         xy_layout = QVBoxLayout(self.xy_controls_widget)
-        xy_layout.setContentsMargins(0, 0, 0, 0)
+        xy_layout.setContentsMargins(0, 4, 0, 0)
         xy_layout.setSpacing(4)
         
-        # Show mapping layers label
-        lbl_layers = QLabel("Show mapping layers")
-        lbl_layers.setStyleSheet("color: #333; font-weight: 500;")
-        xy_layout.addWidget(lbl_layers)
+        xy_layout.addWidget(self._sidebar_section_header("Layers"))
         
-        # Mapping layer checkboxes
         layers_vbox = QVBoxLayout()
-        layers_vbox.setContentsMargins(10, 0, 0, 0)
-        layers_vbox.setSpacing(4)
+        layers_vbox.setContentsMargins(4, 2, 0, 0)
+        layers_vbox.setSpacing(6)
         
         self.chk_layer_lines = QCheckBox("Lines")
         self.chk_layer_lines.setChecked(True)
@@ -631,17 +784,14 @@ class FigaroApp(QMainWindow):
         xy_layout.addLayout(layers_vbox)
         layout.addWidget(self.xy_controls_widget)
         
-        # --- Histogram-specific controls (hidden in XY mode) ---
+        # ── Histogram-specific controls ──
         self.hist_controls_widget = QWidget()
         hist_layout = QVBoxLayout(self.hist_controls_widget)
-        hist_layout.setContentsMargins(0, 0, 0, 0)
+        hist_layout.setContentsMargins(0, 4, 0, 0)
         hist_layout.setSpacing(4)
         
-        lbl_hist = QLabel("Histogram options")
-        lbl_hist.setStyleSheet("color: #333; font-weight: 500;")
-        hist_layout.addWidget(lbl_hist)
+        hist_layout.addWidget(self._sidebar_section_header("Histogram"))
         
-        # Data variable selector for quick access
         hist_var_layout = QHBoxLayout()
         hist_var_layout.addWidget(QLabel("Variable:"))
         self.cb_hist_var = QComboBox()
@@ -656,12 +806,43 @@ class FigaroApp(QMainWindow):
         self.hist_controls_widget.setVisible(False)
         layout.addWidget(self.hist_controls_widget)
         
-        # Mapping Style button (shared — hidden in Histogram mode)
+        # ── Bar Chart-specific controls ──
+        self.bar_controls_widget = QWidget()
+        bar_layout = QVBoxLayout(self.bar_controls_widget)
+        bar_layout.setContentsMargins(0, 4, 0, 0)
+        bar_layout.setSpacing(4)
+        
+        bar_layout.addWidget(self._sidebar_section_header("Bar Chart"))
+        
+        bar_x_layout = QHBoxLayout()
+        bar_x_layout.addWidget(QLabel("X (categories):"))
+        self.cb_bar_x_var = QComboBox()
+        self.cb_bar_x_var.currentIndexChanged.connect(self._on_bar_x_var_changed)
+        bar_x_layout.addWidget(self.cb_bar_x_var)
+        bar_layout.addLayout(bar_x_layout)
+        
+        bar_y_layout = QHBoxLayout()
+        bar_y_layout.addWidget(QLabel("Y (heights):"))
+        self.cb_bar_y_var = QComboBox()
+        self.cb_bar_y_var.currentIndexChanged.connect(self._on_bar_y_var_changed)
+        bar_y_layout.addWidget(self.cb_bar_y_var)
+        bar_layout.addLayout(bar_y_layout)
+        
+        btn_bar_settings = QPushButton("Bar Chart Settings...")
+        btn_bar_settings.clicked.connect(self.open_bar_chart_settings)
+        bar_layout.addWidget(btn_bar_settings)
+        
+        self.bar_controls_widget.setVisible(False)
+        layout.addWidget(self.bar_controls_widget)
+        
+        # ── Quick Actions ──
+        layout.addWidget(self._sidebar_section_header("Quick Actions"))
+        
         self.btn_mapping = QPushButton("Mapping Style...")
         self.btn_mapping.clicked.connect(self.open_mapping_style)
         layout.addWidget(self.btn_mapping)
         
-        # Hidden grid toggle (still referenced by update_plot grid rendering logic)
+        # Hidden grid toggle (still referenced internally)
         self.btn_toggle_grid = QPushButton("Show Grid")
         self.btn_toggle_grid.setCheckable(True)
         self.btn_toggle_grid.setChecked(False)
@@ -692,9 +873,14 @@ class FigaroApp(QMainWindow):
     def _on_plot_type_changed(self, text):
         """Toggle sidebar controls based on selected plot type."""
         is_histogram = (text == "Histogram")
-        self.xy_controls_widget.setVisible(not is_histogram)
+        is_bar_chart = (text == "Bar Chart")
+        is_xy = not is_histogram and not is_bar_chart
+        
+        self.xy_controls_widget.setVisible(is_xy)
         self.hist_controls_widget.setVisible(is_histogram)
-        self.btn_mapping.setVisible(not is_histogram)
+        self.bar_controls_widget.setVisible(is_bar_chart)
+        self.btn_mapping.setVisible(is_xy)
+        self._update_plot_description(text)
         
         if is_histogram:
             # Populate histogram variable dropdown with current variable names
@@ -709,6 +895,25 @@ class FigaroApp(QMainWindow):
                     self.cb_hist_var.setCurrentIndex(default_idx)
             self.cb_hist_var.blockSignals(False)
         
+        elif is_bar_chart:
+            # Populate bar chart variable dropdowns
+            self.cb_bar_x_var.blockSignals(True)
+            self.cb_bar_y_var.blockSignals(True)
+            self.cb_bar_x_var.clear()
+            self.cb_bar_y_var.clear()
+            for j, v in enumerate(self.var_names):
+                self.cb_bar_x_var.addItem(f"{j+1}: {v}", j)
+                self.cb_bar_y_var.addItem(f"{j+1}: {v}", j)
+            if self.maps:
+                x_idx = self.maps[0].get("bar_x_var_idx", self.maps[0].get("x_var_idx", 0))
+                y_idx = self.maps[0].get("bar_y_var_idx", self.maps[0].get("y_var_idx", min(1, len(self.var_names) - 1)))
+                if x_idx < self.cb_bar_x_var.count():
+                    self.cb_bar_x_var.setCurrentIndex(x_idx)
+                if y_idx < self.cb_bar_y_var.count():
+                    self.cb_bar_y_var.setCurrentIndex(y_idx)
+            self.cb_bar_x_var.blockSignals(False)
+            self.cb_bar_y_var.blockSignals(False)
+        
         self.update_plot()
     
     def _on_hist_var_changed(self, idx):
@@ -721,6 +926,24 @@ class FigaroApp(QMainWindow):
     def open_histogram_settings(self):
         dialog = HistogramSettingsDialog(self)
         dialog.exec()
+
+    def open_bar_chart_settings(self):
+        dialog = BarChartSettingsDialog(self)
+        dialog.exec()
+
+    def _on_bar_x_var_changed(self, idx):
+        """Update the bar chart X variable for all mappings."""
+        if idx >= 0:
+            for m in self.maps:
+                m["bar_x_var_idx"] = idx
+            self.update_plot()
+
+    def _on_bar_y_var_changed(self, idx):
+        """Update the bar chart Y variable for all mappings."""
+        if idx >= 0:
+            for m in self.maps:
+                m["bar_y_var_idx"] = idx
+            self.update_plot()
 
     def open_data_table(self):
         if not self.data_vars:
@@ -747,19 +970,58 @@ class FigaroApp(QMainWindow):
 
     def update_plot(self):
         self.ax.clear()
+        # Clear or remove the secondary Y-axis
+        if self.ax2 is not None:
+            self.ax2.clear()
         
         # Branch rendering based on plot type
         plot_type = self.cb_plot_type.currentText()
         if plot_type == "Histogram":
             self._render_histogram()
+        elif plot_type == "Bar Chart":
+            self._render_bar_chart()
         else:
             self._render_xy()
     
+    def _needs_y2(self):
+        """Check if any visible mapping uses the Y2 axis."""
+        for m in self.maps:
+            if m.get("show", True) and m.get("y_axis", "Y1") == "Y2":
+                return True
+        return False
+    
+    def _ensure_ax2(self):
+        """Create the secondary Y-axis if it doesn't exist."""
+        if self.ax2 is None:
+            self.ax2 = self.ax.twinx()
+        return self.ax2
+    
+    def _remove_ax2(self):
+        """Remove the secondary Y-axis if it exists."""
+        if self.ax2 is not None:
+            self.ax2.remove()
+            self.ax2 = None
+    
     def _render_xy(self):
         """Render XY line/scatter/error bar plots from mapping structures."""
+        # Create or remove the secondary Y-axis based on whether any map uses it
+        if self._needs_y2():
+            self._ensure_ax2()
+            # Auto-enable Y2 visibility when maps are assigned to it
+            if not self.axis_cfg.get("Y2_show", False):
+                self.axis_cfg["Y2_show"] = True
+        else:
+            self._remove_ax2()
+            # Auto-disable Y2 when no maps use it
+            if self.axis_cfg.get("Y2_show", False):
+                self.axis_cfg["Y2_show"] = False
+        
         # Iterate over mapping structures
         for m in self.maps:
             if not m.get("show", True): continue
+            
+            # Determine which axes object to plot on
+            target_ax = self.ax2 if (m.get("y_axis", "Y1") == "Y2" and self.ax2 is not None) else self.ax
             
             if m.get("x_var_idx", 0) >= len(self.data_vars) or m.get("y_var_idx", 0) >= len(self.data_vars):
                 continue
@@ -959,7 +1221,7 @@ class FigaroApp(QMainWindow):
                 if parts:
                     lbl += "\n" + ",  ".join(parts)
                     
-                self.ax.plot(x_plot, y_plot, color=m.get("color", "#000000"), linestyle=ls, linewidth=m.get("line_width", 2), label=lbl)
+                target_ax.plot(x_plot, y_plot, color=m.get("color", "#000000"), linestyle=ls, linewidth=m.get("line_width", 2), label=lbl)
             
             # Plot Symbols
             if m.get("show_symbols", True):
@@ -1015,7 +1277,7 @@ class FigaroApp(QMainWindow):
                     if parts:
                         lbl += "\n" + ",  ".join(parts)
                     
-                self.ax.scatter(x_sym, y_sym, marker=marker, s=base_size, 
+                target_ax.scatter(x_sym, y_sym, marker=marker, s=base_size, 
                                 edgecolors=edge_color, facecolors=face_color, 
                                 linewidths=thick, zorder=5, label=lbl)
             
@@ -1064,7 +1326,7 @@ class FigaroApp(QMainWindow):
                     yerr_val = eb_vals if eb_type in ("Vertical", "Both") else None
                     xerr_val = eb_vals if eb_type in ("Horizontal", "Both") else None
                     
-                    self.ax.errorbar(x_eb, y_eb, yerr=yerr_val, xerr=xerr_val,
+                    target_ax.errorbar(x_eb, y_eb, yerr=yerr_val, xerr=xerr_val,
                                      fmt='none', ecolor=eb_color, elinewidth=eb_lw,
                                      capsize=eb_capsize, capthick=eb_lw, zorder=4)
         
@@ -1297,6 +1559,131 @@ class FigaroApp(QMainWindow):
         
         self._apply_axis_config()
     
+    def _render_bar_chart(self):
+        """Render bar chart from each visible mapping."""
+        cfg = self.bar_chart_cfg
+        orientation = cfg.get("orientation", "Vertical")
+        group_mode = cfg.get("group_mode", "Grouped")
+        bar_width = cfg.get("bar_width", 0.8)
+        alpha = cfg.get("alpha", 0.85)
+        edge_color = cfg.get("edge_color", "#333333")
+        edge_width = cfg.get("edge_width", 0.8)
+        show_values = cfg.get("show_values", False)
+        value_fmt = cfg.get("value_fmt", "{:.2g}")
+        
+        # Collect visible mappings
+        visible_maps = []
+        for m in self.maps:
+            if not m.get("show", True):
+                continue
+            x_idx = m.get("bar_x_var_idx", m.get("x_var_idx", 0))
+            y_idx = m.get("bar_y_var_idx", m.get("y_var_idx", 0))
+            if x_idx >= len(self.data_vars) or y_idx >= len(self.data_vars):
+                continue
+            visible_maps.append((m, x_idx, y_idx))
+        
+        if not visible_maps:
+            self._apply_axis_config()
+            return
+        
+        n_maps = len(visible_maps)
+        
+        # Use the first mapping's X data as category positions
+        first_x_data = self.data_vars[visible_maps[0][1]]
+        n_bars = len(first_x_data)
+        x_positions = np.arange(n_bars)
+        
+        # Build category labels from the X variable
+        x_labels = []
+        for val in first_x_data:
+            if np.isnan(val):
+                x_labels.append("")
+            elif val == int(val):
+                x_labels.append(str(int(val)))
+            else:
+                x_labels.append(f"{val:.4g}")
+        
+        # Track bottom for stacked mode
+        bottom = np.zeros(n_bars)
+        
+        for map_idx, (m, x_idx, y_idx) in enumerate(visible_maps):
+            y_data = self.data_vars[y_idx]
+            # Truncate to match category count
+            y_vals = np.nan_to_num(y_data[:n_bars], nan=0.0)
+            if len(y_vals) < n_bars:
+                y_vals = np.pad(y_vals, (0, n_bars - len(y_vals)), constant_values=0.0)
+            
+            color = cfg.get("bar_color") or m.get("color", "#1f77b4")
+            label = m.get("name", f"Map {map_idx + 1}")
+            
+            if group_mode == "Grouped" and n_maps > 1:
+                # Offset bars for grouped mode
+                individual_width = bar_width / n_maps
+                offset = -bar_width / 2 + individual_width * (map_idx + 0.5)
+                bar_x = x_positions + offset
+                w = individual_width * 0.9
+            else:
+                bar_x = x_positions
+                w = bar_width
+            
+            try:
+                if orientation == "Horizontal":
+                    if group_mode == "Stacked":
+                        bars = self.ax.barh(bar_x, y_vals, height=w, left=bottom,
+                                           color=color, alpha=alpha,
+                                           edgecolor=edge_color, linewidth=edge_width,
+                                           label=label)
+                    else:
+                        bars = self.ax.barh(bar_x, y_vals, height=w,
+                                           color=color, alpha=alpha,
+                                           edgecolor=edge_color, linewidth=edge_width,
+                                           label=label)
+                else:
+                    if group_mode == "Stacked":
+                        bars = self.ax.bar(bar_x, y_vals, width=w, bottom=bottom,
+                                          color=color, alpha=alpha,
+                                          edgecolor=edge_color, linewidth=edge_width,
+                                          label=label)
+                    else:
+                        bars = self.ax.bar(bar_x, y_vals, width=w,
+                                          color=color, alpha=alpha,
+                                          edgecolor=edge_color, linewidth=edge_width,
+                                          label=label)
+                
+                # Value annotations
+                if show_values:
+                    for bar_rect in bars:
+                        if orientation == "Horizontal":
+                            val = bar_rect.get_width()
+                            x_pos = bar_rect.get_width()
+                            y_pos = bar_rect.get_y() + bar_rect.get_height() / 2
+                            self.ax.text(x_pos, y_pos, value_fmt.format(val),
+                                         ha='left', va='center', fontsize=8, color='#333')
+                        else:
+                            val = bar_rect.get_height()
+                            x_pos = bar_rect.get_x() + bar_rect.get_width() / 2
+                            y_pos = bar_rect.get_height()
+                            if group_mode == "Stacked":
+                                y_pos = bar_rect.get_y() + bar_rect.get_height()
+                            self.ax.text(x_pos, y_pos, value_fmt.format(val),
+                                         ha='center', va='bottom', fontsize=8, color='#333')
+            except Exception as e:
+                print(f"Bar chart rendering failed: {e}")
+                continue
+            
+            if group_mode == "Stacked":
+                bottom += y_vals
+        
+        # Set category labels
+        if orientation == "Horizontal":
+            self.ax.set_yticks(x_positions)
+            self.ax.set_yticklabels(x_labels)
+        else:
+            self.ax.set_xticks(x_positions)
+            self.ax.set_xticklabels(x_labels)
+        
+        self._apply_axis_config()
+    
     def _apply_axis_config(self):
         # --- Frame Size & Aspect Ratio Implementation ---
         # The axes will dynamically stretch according to the subplots_adjust paddings.
@@ -1343,6 +1730,29 @@ class FigaroApp(QMainWindow):
             self.ax.set_yscale('log')
         else:
             self.ax.set_yscale('linear')
+        
+        # --- Y2 (Secondary Right Axis) Configuration ---
+        if self.ax2 is not None:
+            self.ax2.set_box_aspect(None)
+            
+            y2_min = self.axis_cfg.get("Y2_min", None)
+            y2_max = self.axis_cfg.get("Y2_max", None)
+            if y2_min is not None and y2_max is not None:
+                self.ax2.set_ylim(y2_min, y2_max)
+            elif y2_min is not None:
+                self.ax2.set_ylim(bottom=y2_min)
+            elif y2_max is not None:
+                self.ax2.set_ylim(top=y2_max)
+                
+            if self.axis_cfg.get("Y2_log", False):
+                self.ax2.set_yscale('log')
+            else:
+                self.ax2.set_yscale('linear')
+                
+            if self.axis_cfg.get("Y2_reverse", False):
+                if not self.ax2.yaxis_inverted(): self.ax2.invert_yaxis()
+            else:
+                if self.ax2.yaxis_inverted(): self.ax2.invert_yaxis()
             
         # --- Apply Axis Ticks Configurations ---
         # Helper to convert "Both", "In", "Out" string to lowercase
@@ -1461,6 +1871,65 @@ class FigaroApp(QMainWindow):
         else:
             self.ax.tick_params(axis='y', which='minor', length=0)
             
+        # --- Y2 Tick Configuration ---
+        if self.ax2 is not None:
+            import matplotlib.ticker as ticker2
+            y2_dir = self.axis_cfg.get("Y2_tick_dir", "out").lower()
+            y2_lbl_show = self.axis_cfg.get("Y2_lbl_axis", True)
+            y2_lbl_size = self.axis_cfg.get("Y2_lbl_fontsize", 10)
+            y2_lbl_color = self.axis_cfg.get("Y2_lbl_color", "#000000")
+            try:
+                y2_lbl_pad = float(self.axis_cfg.get("Y2_lbl_offset", 1.0)) * 5.0
+            except ValueError:
+                y2_lbl_pad = 5.0
+            
+            if self.axis_cfg.get("Y2_show_ticks", True):
+                self.ax2.tick_params(axis='y', which='major',
+                                    direction=y2_dir,
+                                    length=self.axis_cfg.get("Y2_tick_len", 4.0),
+                                    width=self.axis_cfg.get("Y2_tick_width", 1.0),
+                                    labelsize=y2_lbl_size,
+                                    labelcolor=y2_lbl_color,
+                                    labelright=y2_lbl_show,
+                                    labelleft=False,
+                                    pad=y2_lbl_pad)
+            else:
+                self.ax2.tick_params(axis='y', which='major', length=0,
+                                    labelsize=y2_lbl_size,
+                                    labelcolor=y2_lbl_color,
+                                    labelright=y2_lbl_show,
+                                    labelleft=False,
+                                    pad=y2_lbl_pad)
+            
+            # Y2 Spacing
+            if not self.axis_cfg.get("Y2_auto_spacing", True):
+                base_y2 = self.axis_cfg.get("Y2_spacing", 30.0)
+                if base_y2 > 0:
+                    self.ax2.yaxis.set_major_locator(ticker2.MultipleLocator(base=base_y2))
+            else:
+                self.ax2.yaxis.set_major_locator(ticker2.AutoLocator())
+                
+            y2_fmt = self.axis_cfg.get("Y2_lbl_format", "Normal")
+            if y2_fmt == "Scientific":
+                y2_formatter = ticker2.ScalarFormatter(useMathText=True)
+                y2_formatter.set_scientific(True)
+                y2_formatter.set_powerlimits((0, 0))
+                self.ax2.yaxis.set_major_formatter(y2_formatter)
+            else:
+                y2_formatter = ticker2.ScalarFormatter(useMathText=False)
+                y2_formatter.set_scientific(False)
+                self.ax2.yaxis.set_major_formatter(y2_formatter)
+            
+            # Y2 Minor Ticks
+            if self.axis_cfg.get("Y2_show_minor_ticks", False):
+                self.ax2.minorticks_on()
+                self.ax2.tick_params(axis='y', which='minor',
+                                    direction=y2_dir,
+                                    length=self.axis_cfg.get("Y2_minor_tick_len", 2.0),
+                                    width=self.axis_cfg.get("Y2_tick_width", 1.0) * 0.75)
+            else:
+                self.ax2.tick_params(axis='y', which='minor', length=0)
+            
         # --- Axis Titles ---
         def get_title_cfg(axis_name, default_text):
             if not self.axis_cfg.get(f"{axis_name}_show", True): 
@@ -1476,7 +1945,7 @@ class FigaroApp(QMainWindow):
                 text = default_text
                 
             color = self.axis_cfg.get(f"{axis_name}_title_color", "#000000")
-            font = self.axis_cfg.get(f"{axis_name}_title_font", "Helvetica")
+            font = self.axis_cfg.get(f"{axis_name}_title_font", "Arial")
             size = self.axis_cfg.get(f"{axis_name}_title_fontsize", 12)
             weight = 'bold' if self.axis_cfg.get(f"{axis_name}_title_bold", True) else 'normal'
             style = 'italic' if self.axis_cfg.get(f"{axis_name}_title_italic", False) else 'normal'
@@ -1499,16 +1968,22 @@ class FigaroApp(QMainWindow):
         # Use the first mapping's variable names if available, else fallback
         default_x_name = "X-Axis"
         default_y_name = "Y-Axis"
+        default_y2_name = "Y2-Axis"
         if len(self.maps) > 0:
             m = self.maps[0]
             if len(self.var_names) > max(m.get("x_var_idx", 0), m.get("y_var_idx", 0)):
                 default_x_name = self.var_names[m.get("x_var_idx", 0)]
                 default_y_name = self.var_names[m.get("y_var_idx", 0)]
+            # Try to find default Y2 name from first Y2 mapping
+            for m2 in self.maps:
+                if m2.get("y_axis", "Y1") == "Y2" and m2.get("show", True):
+                    if len(self.var_names) > m2.get("y_var_idx", 0):
+                        default_y2_name = self.var_names[m2.get("y_var_idx", 0)]
+                    break
                 
         x_text, x_props, x_offset = get_title_cfg("X1", default_x_name)
         if x_text:
             self.ax.set_xlabel(x_text, **x_props)
-            # 0% offset means it attaches to the axis line (y=0 in axes fraction)
             self.ax.xaxis.set_label_coords(0.5, -x_offset / 100.0)
         else:
             self.ax.set_xlabel("")
@@ -1516,10 +1991,18 @@ class FigaroApp(QMainWindow):
         y_text, y_props, y_offset = get_title_cfg("Y1", default_y_name)
         if y_text:
             self.ax.set_ylabel(y_text, **y_props)
-            # 0% offset means it attaches to the axis line (x=0 in axes fraction)
             self.ax.yaxis.set_label_coords(-y_offset / 100.0, 0.5)
         else:
             self.ax.set_ylabel("")
+            
+        # Y2 Axis Title
+        if self.ax2 is not None:
+            y2_text, y2_props, y2_offset = get_title_cfg("Y2", default_y2_name)
+            if y2_text:
+                self.ax2.set_ylabel(y2_text, **y2_props)
+                self.ax2.yaxis.set_label_coords(1.0 + y2_offset / 100.0, 0.5)
+            else:
+                self.ax2.set_ylabel("")
             
         if self.axis_cfg["X1_reverse"]:
             if not self.ax.xaxis_inverted(): self.ax.invert_xaxis()
@@ -1556,6 +2039,17 @@ class FigaroApp(QMainWindow):
         else:
             self.ax.get_yaxis().set_visible(True)
             self.ax.spines['left'].set_visible(y_line or visible_borders)
+            
+        # Y2 Axis Visibility
+        if self.ax2 is not None:
+            y2_show = self.axis_cfg.get("Y2_show", False)
+            if not y2_show:
+                self.ax2.get_yaxis().set_visible(False)
+            else:
+                self.ax2.get_yaxis().set_visible(True)
+            # Y2 always uses the right spine
+            self.ax.spines['right'].set_visible(True)
+            self.ax2.spines['right'].set_linewidth(1.5)
         
         # --- Advanced Label Formatting ---
         try:
@@ -1577,11 +2071,11 @@ class FigaroApp(QMainWindow):
         x_skip = self.axis_cfg.get("X1_lbl_skip", 1)
         y_skip = self.axis_cfg.get("Y1_lbl_skip", 1)
 
-        x_font = self.axis_cfg.get("X1_lbl_font", "Helvetica")
+        x_font = self.axis_cfg.get("X1_lbl_font", "Arial")
         x_bold = "bold" if self.axis_cfg.get("X1_lbl_bold", False) else "normal"
         x_italic = "italic" if self.axis_cfg.get("X1_lbl_italic", False) else "normal"
         
-        y_font = self.axis_cfg.get("Y1_lbl_font", "Helvetica")
+        y_font = self.axis_cfg.get("Y1_lbl_font", "Arial")
         y_bold = "bold" if self.axis_cfg.get("Y1_lbl_bold", False) else "normal"
         y_italic = "italic" if self.axis_cfg.get("Y1_lbl_italic", False) else "normal"
 
@@ -1609,8 +2103,12 @@ class FigaroApp(QMainWindow):
                 
         # --- Legend Rendering ---
         if self.legend_cfg.get("show_line_legend", True) and len(self.maps) > 0 and any(m.get("show", True) for m in self.maps):
-            # Only use labels if show_mapping_names is checked
+            # Merge handles from both Y1 and Y2 axes for a unified legend
             handles, labels = self.ax.get_legend_handles_labels()
+            if self.ax2 is not None:
+                h2, l2 = self.ax2.get_legend_handles_labels()
+                handles += h2
+                labels += l2
             if not self.legend_cfg.get("show_mapping_names", True):
                 labels = [""] * len(labels)
                 
@@ -1737,6 +2235,12 @@ class FigaroApp(QMainWindow):
         frac_right = 1.0 - (raw_p_right / w) if w > 0 else 0.90
         frac_bottom = (raw_p_bottom / h) if h > 0 else 0.10
         frac_top = 1.0 - (raw_p_top / h) if h > 0 else 0.90
+        
+        # When Y2 axis is active, ensure right padding has room for tick labels and title
+        if self.ax2 is not None and self.axis_cfg.get("Y2_show", False):
+            min_right_pad = 0.8  # minimum inches for Y2 labels
+            effective_right = max(raw_p_right, min_right_pad)
+            frac_right = 1.0 - (effective_right / w) if w > 0 else 0.85
         
         # If square aspect is enabled, the actual drawn figure height might be constrained by the canvas width or vice-versa
         # in set_aspect_ratio. Let's maintain the user's explicit fractions.
@@ -1900,6 +2404,14 @@ class FigaroApp(QMainWindow):
         
         self.ax.set_xlim([xdata - new_width * (1 - relx), xdata + new_width * relx])
         self.ax.set_ylim([ydata - new_height * (1 - rely), ydata + new_height * rely])
+        
+        # Zoom Y2 axis proportionally if it exists
+        if self.ax2 is not None:
+            cur_y2lim = self.ax2.get_ylim()
+            new_y2_height = (cur_y2lim[1] - cur_y2lim[0]) * scale_factor
+            y2_center = (cur_y2lim[0] + cur_y2lim[1]) / 2.0
+            self.ax2.set_ylim([y2_center - new_y2_height / 2, y2_center + new_y2_height / 2])
+        
         self.canvas.draw()
 
     def on_mouse_press(self, event):
@@ -1910,20 +2422,30 @@ class FigaroApp(QMainWindow):
                     self.open_legend_style()
                 return # Do not trigger panning if interacting with legend
                 
-        if event.button == 1 and event.inaxes == self.ax:
+        if event.button == 1 and (event.inaxes == self.ax or (self.ax2 is not None and event.inaxes == self.ax2)):
             self.panning = True
             self.pan_start_x = event.xdata
             self.pan_start_y = event.ydata
             QApplication.setOverrideCursor(Qt.CursorShape.ClosedHandCursor)
 
     def on_mouse_move(self, event):
-        if not self.panning or event.inaxes != self.ax: return
+        if not self.panning or (event.inaxes != self.ax and not (self.ax2 is not None and event.inaxes == self.ax2)): return
         dx = event.xdata - self.pan_start_x
         dy = event.ydata - self.pan_start_y
         cur_xlim = self.ax.get_xlim()
         cur_ylim = self.ax.get_ylim()
         self.ax.set_xlim([cur_xlim[0] - dx, cur_xlim[1] - dx])
         self.ax.set_ylim([cur_ylim[0] - dy, cur_ylim[1] - dy])
+        
+        # Pan Y2 axis proportionally if it exists
+        if self.ax2 is not None:
+            cur_y2lim = self.ax2.get_ylim()
+            y2_range = cur_y2lim[1] - cur_y2lim[0]
+            y1_range = cur_ylim[1] - cur_ylim[0]
+            if y1_range != 0:
+                dy2 = dy * (y2_range / y1_range)
+                self.ax2.set_ylim([cur_y2lim[0] - dy2, cur_y2lim[1] - dy2])
+        
         self.canvas.draw()
 
     def on_mouse_release(self, event):
@@ -2142,8 +2664,20 @@ class FigaroApp(QMainWindow):
             "Y1_title_offset": 10.0,
             "Y1_log": False,
             "Y1_reverse": False,
-            "Y1_line_show_grid_border": True
+            "Y1_line_show_grid_border": True,
+            # Secondary Y-axis (right side)
+            "Y2_show": False,
+            "Y2_title_text": "Y2 Axis",
+            "Y2_min": None,
+            "Y2_max": None,
+            "Y2_title_offset": 10.0,
+            "Y2_log": False,
+            "Y2_reverse": False,
+            "Y2_line_show_grid_border": False
         }
+        
+        # Remove secondary Y-axis if it exists
+        self._remove_ax2()
         
         self.frame_cfg = {
             "paper_size": "Letter (8.5 x 11 in)",

@@ -39,7 +39,7 @@ class AxisDetailsDialog(QDialog):
         top_hbox.addSpacing(20)
         
         self.axis_group = QButtonGroup(self)
-        axes_names = ["X1", "Y1", "X2", "Y2", "X3", "Y3", "X4", "Y4", "X5", "Y5"]
+        axes_names = ["X1", "Y1", "Y2"]
         for i, name in enumerate(axes_names):
             btn = QPushButton(name)
             btn.setCheckable(True)
@@ -928,6 +928,8 @@ class AxisDetailsDialog(QDialog):
         
         if "X" in self.current_axis:
             lims = self.parent_window.ax.get_xlim()
+        elif self.current_axis == "Y2" and self.parent_window.ax2 is not None:
+            lims = self.parent_window.ax2.get_ylim()
         else:
             lims = self.parent_window.ax.get_ylim()
             
@@ -1214,7 +1216,12 @@ class AxisDetailsDialog(QDialog):
             self.chk_line_show_grid_border.setChecked(self.cfg.get(f"{self.current_axis}_line_show_grid_border", False))
             self.chk_line_show_grid_border.blockSignals(False)
 
-        lims = self.parent_window.ax.get_xlim() if "X" in self.current_axis else self.parent_window.ax.get_ylim()
+        if "X" in self.current_axis:
+            lims = self.parent_window.ax.get_xlim()
+        elif self.current_axis == "Y2" and self.parent_window.ax2 is not None:
+            lims = self.parent_window.ax2.get_ylim()
+        else:
+            lims = self.parent_window.ax.get_ylim()
         self.le_min.blockSignals(True)
         self.le_max.blockSignals(True)
         

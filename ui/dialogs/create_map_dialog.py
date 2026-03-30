@@ -260,6 +260,7 @@ class CreateMapDialog(QDialog):
             "name": name,
             "x_var_idx": x_idx,
             "y_var_idx": y_idx,
+            "y_axis": "Y1",
             "color": color,
             "line_style": "Solid",
             "line_width": 2,
