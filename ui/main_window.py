@@ -946,9 +946,6 @@ class FigaroApp(QMainWindow):
             self.update_plot()
 
     def open_data_table(self):
-        if not self.data_vars:
-            self.status.showMessage("Please load data before opening Data Set Manager.")
-            return
         self.data_table_dlg = DataManagerDialog(self)
         self.data_table_dlg.show()
         
@@ -2177,7 +2174,7 @@ class FigaroApp(QMainWindow):
             return 0.5 if val_str == "First" else 10.0
                 
         # X1 Axis Grid
-        if self.axis_cfg.get("X1_grid_show", True):
+        if self.axis_cfg.get("X1_grid_show", False):
             self.ax.grid(True, which='major', axis='x',
                          color=self.axis_cfg.get("X1_grid_color", "#000000"),
                          linestyle=parse_style(self.axis_cfg.get("X1_grid_pattern", "Solid")),
@@ -2196,7 +2193,7 @@ class FigaroApp(QMainWindow):
             self.ax.grid(False, which='minor', axis='x')
 
         # Y1 Axis Grid
-        if self.axis_cfg.get("Y1_grid_show", True):
+        if self.axis_cfg.get("Y1_grid_show", False):
             self.ax.grid(True, which='major', axis='y',
                          color=self.axis_cfg.get("Y1_grid_color", "#000000"),
                          linestyle=parse_style(self.axis_cfg.get("Y1_grid_pattern", "Solid")),

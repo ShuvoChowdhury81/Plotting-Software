@@ -217,7 +217,7 @@ class AxisDetailsDialog(QDialog):
         
         # Show checkbox
         self.chk_grid_show = QCheckBox("Show")
-        self.chk_grid_show.setChecked(self.cfg.get(f"{self.current_axis}_grid_show", True))
+        self.chk_grid_show.setChecked(self.cfg.get(f"{self.current_axis}_grid_show", False))
         self.chk_grid_show.stateChanged.connect(lambda s: self.update_cfg(f"{self.current_axis}_grid_show", s == Qt.CheckState.Checked.value))
         v_left.addWidget(self.chk_grid_show)
         
@@ -723,7 +723,7 @@ class AxisDetailsDialog(QDialog):
         self.sp_title_fontsize.setRange(1.0, 72.0)
         self.sp_title_fontsize.setSingleStep(0.1)
         self.sp_title_fontsize.setFixedWidth(55)
-        self.sp_title_fontsize.setValue(self.cfg.get(f"{self.current_axis}_title_fontsize", 3.6))
+        self.sp_title_fontsize.setValue(self.cfg.get(f"{self.current_axis}_title_fontsize", 12))
         self.sp_title_fontsize.valueChanged.connect(lambda v: self.update_cfg(f"{self.current_axis}_title_fontsize", v))
         font_hbox.addWidget(self.sp_title_fontsize)
 
@@ -1006,7 +1006,7 @@ class AxisDetailsDialog(QDialog):
 
         # ── Reload Grid tab ───────────────────────────────────────────────────
         self.chk_grid_show.blockSignals(True)
-        self.chk_grid_show.setChecked(self.cfg.get(f"{self.current_axis}_grid_show", True))
+        self.chk_grid_show.setChecked(self.cfg.get(f"{self.current_axis}_grid_show", False))
         self.chk_grid_show.blockSignals(False)
 
         self.cb_grid_pattern.blockSignals(True)
@@ -1095,7 +1095,7 @@ class AxisDetailsDialog(QDialog):
         self.cb_title_font.blockSignals(False)
 
         self.sp_title_fontsize.blockSignals(True)
-        self.sp_title_fontsize.setValue(self.cfg.get(f"{self.current_axis}_title_fontsize", 3.6))
+        self.sp_title_fontsize.setValue(self.cfg.get(f"{self.current_axis}_title_fontsize", 12))
         self.sp_title_fontsize.blockSignals(False)
 
         self.btn_title_bold.blockSignals(True)
